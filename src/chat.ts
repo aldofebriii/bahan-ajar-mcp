@@ -6,7 +6,6 @@ import OpenAI from 'openai';
 interface ClientInformation {
     url: string;
     client: Client;
-    transport: StreamableHTTPClientTransport;
     tools?: ListToolsResult['tools'];
     resources?: ListResourcesResult['resources'];
     resourceTemplates?: ListResourceTemplatesResult['resourceTemplates'];
@@ -15,6 +14,7 @@ interface ClientInformation {
 //Digunakan untuk menyimpan map url -> client information
 const clientRecords: Map<string, ClientInformation> = new Map();
 
+//Session dari user terdiri dari mcp-client yang terhubung dan history messagenya
 interface UserSession {
     clients: ClientInformation[];
     messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
@@ -29,7 +29,7 @@ interface ISinglePayload {
 
 const router = Router();
 /**
- * Digunakan untuk inisasi MCP Server dari client ke mcp server
+ * Digunakan untuk menambahkan hubungan 1 mcp server
  */
 router.post('/single', async (req: Request<{}, {}, ISinglePayload>, res, next) => {
     const { url, name } = req.body;
@@ -40,12 +40,12 @@ router.post('/single', async (req: Request<{}, {}, ISinglePayload>, res, next) =
         const client = new Client({ name: name, version: '0.0.1' })
         const transport = new StreamableHTTPClientTransport(new URL(url));
         //Hubungkan Client,Transport dan Server
-        let clientInformation: ClientInformation = { client, transport, url };
+        let clientInformation: ClientInformation = { client, url };
         try {
             await client.connect(transport, { timeout: 10000 });
         } catch (err) {
             console.error(err);
-            return res.status(500).json({ message: err })
+            return res.status(500).json({ message: err?.toString() })
         };
 
         const capabilites = client.getServerCapabilities();
@@ -94,18 +94,27 @@ router.post('/new', (req: Request<{}, {}, INewChatPayload>, res, next) => {
     return res.status(200).json({ sessionId: uuid });
 });
 
+router.get('/clients', (req, res, next) => {
+    return res.status(200).json(Object.fromEntries(clientRecords));
+});
+
 router.get('/session/:sessionId', (req: Request<{ sessionId: string }>, res, next) => {
     const sessionId = req.params.sessionId;
     const session = userInMemory.get(sessionId);
     if (!session) return res.status(404).json({ message: "session not found" })
     return res.status(200).json({
-        clients: session.clients.map(c => ({
-            url: c.url,
-            tools: c.tools,
-            resources: c.resources,
-            resourceTemplates: c.resourceTemplates,
-            prompts: c.prompts
-        })),
+        clients: session.clients.map(c => {
+            const serverInfo = c.client.getServerVersion();
+            return {
+                url: c.url,
+                name: serverInfo?.name,
+                version: serverInfo?.version,
+                tools: c.tools,
+                resources: c.resources,
+                resourceTemplates: c.resourceTemplates,
+                prompts: c.prompts
+            };
+        }),
         messages: session.messages
     });
 })
