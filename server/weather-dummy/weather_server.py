@@ -9,13 +9,9 @@ import sys
 import random
 from typing import Literal
 
-# Pastikan UTF-8 di Windows Console
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-
 import mcp.types as types
 from mcp.server import MCPServer
-from mcp.server.streamable_http import TransportSecuritySettings
+from mcp.server.transport_security import TransportSecuritySettings
 
 # Inisialisasi Server MCP
 server = MCPServer(
