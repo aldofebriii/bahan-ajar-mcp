@@ -44,6 +44,33 @@ def get_datasource_metadata(table: str) -> types.TextContent:
         result = f"Error saat mengambil metadata: {str(e)}"
     return types.TextContent(text=result, type="text")
 
+@mcp.tool(name='pull_data', description='Tarik data dari tabel dengan opsi select, filter where, dan group by (agregasi)')
+def pull_data(table_name: str, select: str = "*", filter_where: str | None = None, group_by: str | None = None) -> types.TextContent:
+    """
+    Menarik data dari database berdasarkan tabel, select, filter (where), dan group by.
+    """
+    try:
+        query = f"SELECT {select} FROM {table_name}"
+        if filter_where:
+            query += f" WHERE {filter_where}"
+        if group_by:
+            query += f" GROUP BY {group_by}"
+            
+        result = conn.execute(query).fetchall()
+        
+        if not result:
+            return types.TextContent(text="Data tidak ditemukan.", type="text")
+            
+        columns = [desc[0] for desc in conn.description]
+        
+        output = [ " | ".join(columns) ]
+        for row in result:
+            output.append(" | ".join(str(x) for x in row))
+            
+        return types.TextContent(text="\n".join(output), type="text")
+    except Exception as e:
+        return types.TextContent(text=f"Error saat menarik data: {str(e)}", type="text")
+
 @mcp.tool(name='list_data_sources', description='List datasource yang terhubung dengan DuckDB')
 def list_data_sources() -> list[str]:
     """
