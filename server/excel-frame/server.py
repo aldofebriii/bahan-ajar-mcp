@@ -1,15 +1,50 @@
 import os
 from mcp.server import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
+from mcp import types
 import argparse
 import duckdb
+import logging
 
-server = MCPServer(name='excel-frame', version='0.0.1', description='MCP Server untuk eksplorasi data excel menggunakan duckdb')
+mcp = MCPServer(name='excel-frame')
 
 # Inisialisasi koneksi DuckDB secara global agar bisa diakses oleh fungsi tools
 conn = duckdb.connect("my_data.db")
 
-@server.tool(name='list_data_sources', description='List datasource yang terhubung dengan DuckDB')
+@mcp.tool(name="get_datasource_metadata", description="Penjelasan kolom dari datasource yang digunakan")
+def get_datasource_metadata(table: str) -> types.TextContent:
+    query = """
+        SELECT 
+            column_name,
+            data_type,
+            is_nullable,
+            column_default,
+            comment
+        FROM duckdb_columns()
+        where table_name = ?
+    """
+    try:
+        result = conn.execute(query, [table]).fetchall()
+        if not result:
+            result = f"Tabel {table} tidak memiliki metadata"
+            logging.error(result)
+            raise Exception(result) 
+            
+        
+        metadata = [
+            f"Metadata untuk tabel {table} : ", 
+            "column_name : data_type | is_nullable | column_default | comment"
+        ]
+        for row in result:
+            column_name, data_type, is_nullable, column_default, comment = row
+            metadata.append(f"{column_name}: {data_type} | {is_nullable} | {column_default} | {comment}")
+        
+        result = "\n".join(metadata)
+    except Exception as e:
+        result = f"Error saat mengambil metadata: {str(e)}"
+    return types.TextContent(text=result, type="text")
+
+@mcp.tool(name='list_data_sources', description='List datasource yang terhubung dengan DuckDB')
 def list_data_sources() -> list[str]:
     """
     Menampilkan daftar semua tabel (data source) yang tersedia di database DuckDB.
@@ -42,9 +77,8 @@ if __name__ == "__main__":
             enable_dns_rebinding_protection=False
         )
 
-        server.run(
+        mcp.run(
             transport="streamable-http",
-            host=args.host,
             port=args.port,
             streamable_http_path=args.path,
             transport_security=security_settings
