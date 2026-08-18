@@ -56,8 +56,27 @@ app.post('/mcp', async (req, res, next) => {
         return res.status(500).json('Internal Error : ' + err?.toString())
     }
 })
-app.get('/mcp')
-app.delete('/mcp')
+app.get('/mcp', (req, res, next) => {
+    const sessionId = req.headers['mcp-session-id'] as string;
+    let transport: NodeStreamableHTTPServerTransport;
+    if (sessionId && TransportSession.has(sessionId)) {
+        transport = TransportSession.get(sessionId)!;
+    } else {
+        return res.status(400).send("Invalid or missing session ID");
+    };
+    transport.handleRequest(req, res);
+});
+
+app.delete('/mcp', (req, res, next) => {
+    const sessionId = req.headers['mcp-session-id'] as string;
+    let transport: NodeStreamableHTTPServerTransport;
+    if (sessionId && TransportSession.has(sessionId)) {
+        transport = TransportSession.get(sessionId)!;
+    } else {
+        return res.status(400).send("Invalid or missing session ID");
+    };
+    transport.handleRequest(req, res);
+})
 
 app.listen(PORT, () => {
     console.log('Server is connected ' + PORT)
