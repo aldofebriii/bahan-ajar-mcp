@@ -95,7 +95,20 @@ router.post('/new', (req: Request<{}, {}, INewChatPayload>, res, next) => {
 });
 
 router.get('/clients', (req, res, next) => {
-    return res.status(200).json(Object.fromEntries(clientRecords));
+    const clientsResponse: Record<string, any> = {};
+    for (const [name, c] of clientRecords.entries()) {
+        const serverInfo = c.client.getServerVersion();
+        clientsResponse[name] = {
+            url: c.url,
+            name: serverInfo?.name,
+            version: serverInfo?.version,
+            tools: c.tools,
+            resources: c.resources,
+            resourceTemplates: c.resourceTemplates,
+            prompts: c.prompts
+        };
+    }
+    return res.status(200).json(clientsResponse);
 });
 
 router.get('/session/:sessionId', (req: Request<{ sessionId: string }>, res, next) => {
