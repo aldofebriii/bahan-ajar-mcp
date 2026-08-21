@@ -8,7 +8,7 @@ import { z } from 'zod';
 const PORT = 8003;
 
 const app = express();
-app.use(cors);
+app.use(cors());
 app.use(express.json());
 
 const TransportSession: Map<string, NodeStreamableHTTPServerTransport> = new Map();
